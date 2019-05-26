@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -18,10 +17,10 @@ namespace QzoneLogin
         public Form1()
         {
             InitializeComponent();
-            var text = File.ReadAllLines(@"E:\qq.txt");
+            var text = File.ReadAllLines(@"F:\qq.txt");
             foreach (var item in text)
             {
-                var array = item.Split(new string[] { "\t" }, StringSplitOptions.RemoveEmptyEntries);
+                var array = item.Split(new string[] { " " }, StringSplitOptions.RemoveEmptyEntries);
                 data.Add(new QQLoginModel() { qq = array[0], pwd = array[1] });
             }
 
@@ -34,8 +33,7 @@ namespace QzoneLogin
         }
         private void button1_Click(object sender, EventArgs e)
         {
-            webBrowser1.DocumentCompleted += new WebBrowserDocumentCompletedEventHandler(webBrowser1_DocumentCompleted);
-            Login();
+            
         }
 
         private void webBrowser1_DocumentCompleted(object sender, WebBrowserDocumentCompletedEventArgs e)
@@ -45,13 +43,20 @@ namespace QzoneLogin
             //再次判断是否加载完成
             if (webBrowser1.ReadyState == WebBrowserReadyState.Complete && webBrowser1.IsBusy == false)
             {
-                //while (doc == null)  //网络操作总是伴随着一些不可预知的异常，所以在这以防万一对象为空,我们继续判断
-                //{
-                //    Application.DoEvents();//如果为空，就转交控制权
-                //}
-
-                if (e.Url.AbsoluteUri == "https://user.qzone.qq.com/" + data[index].qq)
+                var doc = webBrowser1.Document;
+                while (doc == null)  //网络操作总是伴随着一些不可预知的异常，所以在这以防万一对象为空,我们继续判断
                 {
+                    Application.DoEvents();//如果为空，就转交控制权
+                }
+                textBox1.Text = e.Url.AbsoluteUri;
+
+                if (e.Url.AbsoluteUri == url)
+                {
+                    Task.Run(() => Login(doc));
+                }
+                else if (e.Url.AbsoluteUri == "https://user.qzone.qq.com/" + data[index].qq)
+                {
+                    Thread.Sleep(2000);
                     if (!successList.Contains(data[index].qq))
                     {
                         successList.Add(data[index].qq);
@@ -60,32 +65,32 @@ namespace QzoneLogin
                     }
                     webBrowser1.Navigate(url);
                 }
-
-                else if (e.Url.AbsoluteUri == "https://qzs.qq.com/ac/qzfl/release/resource/html/storage_helper.html")
+                else if (e.Url.AbsoluteUri == "https://qzs.qq.com/ac/qzfl/release/resource/html/storage_helper.html"
+                    || e.Url.AbsoluteUri == "https://user.qzone.qq.com/troubleshooter?traytip")
                 {
-                    Thread.Sleep(500);
                     webBrowser1.Navigate(url);
                     return;
                 }
             }
-            
         }
 
-        private void Login()
+        private async void Login(HtmlDocument doc)
         {
-            HtmlDocument doc = webBrowser1.Document; //抓取网页
+            //HtmlDocument doc = webBrowser1.Document; //抓取网页
+            await Task.Delay(2500);
             doc.GetElementById("login_button")?.InvokeMember("click");
             doc.GetElementById("switcher_plogin")?.InvokeMember("click");//切换成账号密码登录
-            Thread.Sleep(500);
             var user = doc.GetElementById("u");
             var pwd = doc.GetElementById("p");
-
+            await Task.Delay(1000);
             ////设置元素value属性值 (用户名 密码值)
             user.SetAttribute("value", data[index].qq);
+            await Task.Delay(1000);
             pwd.SetAttribute("value", data[index].pwd);
-            //Thread.Sleep(1000);
             ////执行元素的方法：如click submit
+            await Task.Delay(1000);
             doc.GetElementById("login_button")?.InvokeMember("click");
+            await Task.Delay(500);
         }
     }
 
